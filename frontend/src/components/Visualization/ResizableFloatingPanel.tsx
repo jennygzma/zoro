@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 
 import { colors } from '../../design-system/colors';
@@ -36,15 +36,6 @@ export function ResizableFloatingPanel({
   const [height, setHeight] = useState(520);
   const [resizeY, setResizeY] = useState<ResizeYState>(null);
   const positioned = useRef(false);
-
-  useLayoutEffect(() => {
-    if (open && !positioned.current) {
-      const x = Math.max(PANEL_MARGIN, window.innerWidth - width - 16);
-      const y = Math.max(PANEL_MARGIN, Math.min(initialY, window.innerHeight - height - PANEL_MARGIN));
-      setPosition({ x, y });
-      positioned.current = true;
-    }
-  }, [height, initialY, open, width]);
 
   useEffect(() => {
     if (!drag && !resize && !resizeY) return;
@@ -251,7 +242,15 @@ export function ResizableFloatingPanel({
 
       {!open && (
         <Box
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            if (!positioned.current) {
+              const x = Math.max(PANEL_MARGIN, window.innerWidth - width - 16);
+              const y = Math.max(PANEL_MARGIN, Math.min(initialY, window.innerHeight - height - PANEL_MARGIN));
+              setPosition({ x, y });
+              positioned.current = true;
+            }
+            setOpen(true);
+          }}
           sx={{
             position: 'fixed',
             right: 0,

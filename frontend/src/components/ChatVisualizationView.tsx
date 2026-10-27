@@ -7,9 +7,11 @@ import PauseIcon from '@mui/icons-material/Pause';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ReactMarkdown from 'react-markdown';
-import { api, type VisualizationPlanDocument } from '../services/api';
+import { api, type ChatHistorySource, type ChatVisualization, type VisualizationPlanDocument } from '../services/api';
 import { Accordion } from '../design-system/Accordion';
 import { CompactIconButton } from '../design-system/CompactIconButton';
+import { MenuItem } from '../design-system/MenuItem';
+import { Select } from '../design-system/Select';
 import { colors } from '../design-system/colors';
 import { SupervisorPanel } from './Visualization/SupervisorPanel';
 import { RuleLearningPanel } from './Visualization/RuleLearningPanel';
@@ -43,6 +45,13 @@ interface PreparePlayResult {
   ruleRetrievalSource: string;
   warning?: string;
 }
+
+const CHAT_SOURCE_OPTIONS: Array<{ value: ChatHistorySource; label: string }> = [
+  { value: 'codex', label: 'Codex' },
+  { value: 'claude', label: 'Claude Code' },
+  { value: 'cline', label: 'Cline' },
+  { value: 'cursor', label: 'Cursor' },
+];
 
 function decodeEscapedText(input: string): string {
   return input
@@ -86,7 +95,13 @@ function extractCodexTextBlocks(raw: string): string | null {
   return texts.length ? texts.join('\n\n') : null;
 }
 
-export function ChatVisualizationView({ chatId, onUpdateName }: { chatId: string; onUpdateName: (chatId: string, name: string) => void; }) {
+export function ChatVisualizationView({
+  chatId,
+  onUpdateVisualization,
+}: {
+  chatId: string;
+  onUpdateVisualization: (chatId: string, updates: Partial<ChatVisualization>) => void;
+}) {
   const PLAY_DETECTED_VISIBLE_MS = 1300;
   const PLAY_NO_RULES_VISIBLE_MS = 2000;
   const PLAY_DETECTION_FAILURE_DISMISS_MS = 400;
@@ -101,6 +116,7 @@ export function ChatVisualizationView({ chatId, onUpdateName }: { chatId: string
   const [notesRefreshKey, setNotesRefreshKey] = useState(0);
   const [playOverlayState, setPlayOverlayState] = useState<PlayOverlayState | null>(null);
   const [playOverlayMeta, setPlayOverlayMeta] = useState<PlayOverlayMeta>({});
+  const [isUpdatingSource, setIsUpdatingSource] = useState(false);
   const trackingSignatureRef = useRef<string>('');
   const playOverlayTimersRef = useRef<number[]>([]);
   const autoPrepareInFlightRef = useRef(false);
@@ -413,9 +429,33 @@ export function ChatVisualizationView({ chatId, onUpdateName }: { chatId: string
   };
 
   const handleSaveName = async () => {
-    await api.updateChatVisualization(chatId, name);
-    onUpdateName(chatId, name);
+    const response = await api.updateChatVisualization(chatId, { name });
+    setVisualization(response);
+    setName(response.name || name);
+    onUpdateVisualization(chatId, { name: response.name || name });
+    setStatus(response.status);
     setIsEditing(false);
+  };
+
+  const handleSourceChange = async (source: ChatHistorySource) => {
+    const currentSource = (visualization as any)?.chat_history_source as ChatHistorySource | undefined;
+    if (source === currentSource) return;
+
+    setIsUpdatingSource(true);
+    try {
+      const response = await api.updateChatVisualization(chatId, { chat_history_source: source });
+      const metadata = response as any;
+      setVisualization(response);
+      setStatus(response.status);
+      setContent(metadata.cleaned_accumulated_content || metadata.accumulated_content || null);
+      trackingSignatureRef.current = getTrackingSignature(metadata);
+      await refreshPlanAndEvidence(metadata, { forcePlanReload: true });
+      onUpdateVisualization(chatId, { chat_history_source: source });
+    } catch (error) {
+      console.error('Failed to update chat source:', error);
+    } finally {
+      setIsUpdatingSource(false);
+    }
   };
 
   const shouldRenderCodexStyleLog = useMemo(() => {
@@ -587,17 +627,30 @@ export function ChatVisualizationView({ chatId, onUpdateName }: { chatId: string
             </>
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Select
+            size="small"
+            value={((visualization as any)?.chat_history_source || 'codex') as ChatHistorySource}
+            onChange={(event) => handleSourceChange(event.target.value as ChatHistorySource)}
+            disabled={isUpdatingSource || status === 'polling' || !!playOverlayState}
+            sx={{ minWidth: 132 }}
+          >
+            {CHAT_SOURCE_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
           <Tooltip title="Start visualization polling">
             <span>
-              <IconButton onClick={handleStart} disabled={status === 'polling' || !!playOverlayState} disableRipple sx={{ '&:focus': { outline: 'none' } }}>
+              <IconButton onClick={handleStart} disabled={status === 'polling' || !!playOverlayState || isUpdatingSource} disableRipple sx={{ '&:focus': { outline: 'none' } }}>
                 <PlayArrowIcon />
               </IconButton>
             </span>
           </Tooltip>
           <Tooltip title="Pause visualization polling">
             <span>
-              <IconButton onClick={handlePause} disabled={status === 'paused' || !!playOverlayState} disableRipple sx={{ '&:focus': { outline: 'none' } }}>
+              <IconButton onClick={handlePause} disabled={status === 'paused' || !!playOverlayState || isUpdatingSource} disableRipple sx={{ '&:focus': { outline: 'none' } }}>
                 <PauseIcon />
               </IconButton>
             </span>

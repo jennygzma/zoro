@@ -12,6 +12,13 @@ Check `.zoro/CURRENT_PLAN.md` for the exact item IDs in your plan.
 ## Overview
 This mode allows you to work through visualization plans with **simple status tracking only**. No verification commands are required - just mark items as in_progress or completed as you work.
 
+## Environment
+
+Run commands from the Conda `zoro` environment.
+
+- Preferred (no activation): `conda run -n zoro zoro <command>`
+- Optional: `conda activate zoro` and then run `zoro <command>`
+
 ## Core Workflow
 
 **⚠️ CRITICAL: Terminal Command Format**

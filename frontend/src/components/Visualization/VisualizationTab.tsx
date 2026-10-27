@@ -23,21 +23,21 @@ export function VisualizationTab() {
 
   const handleNewVisualization = async () => {
     const response = await api.createChatVisualization();
-    setVisualizations([...visualizations, response]);
+    setVisualizations((prev) => [...prev, response]);
     setSelectedVis(response.chat_id);
   };
 
   const handleDeleteVisualization = async (chatId: string) => {
     await api.deleteChatVisualization(chatId);
-    setVisualizations(visualizations.filter((vis) => vis.chat_id !== chatId));
+    setVisualizations((prev) => prev.filter((vis) => vis.chat_id !== chatId));
     if (selectedVis === chatId) {
       setSelectedVis(null);
     }
   };
 
-  const handleUpdateVisualizationName = (chatId: string, name: string) => {
-    setVisualizations(visualizations.map((vis) => 
-      vis.chat_id === chatId ? { ...vis, name } : vis
+  const handleUpdateVisualization = (chatId: string, updates: Partial<ChatVisualization>) => {
+    setVisualizations((prev) => prev.map((vis) =>
+      vis.chat_id === chatId ? { ...vis, ...updates } : vis
     ));
   };
 
@@ -53,6 +53,7 @@ export function VisualizationTab() {
                   <Add sx={{ fontSize: 18 }} />
                 </IconActionButton>
               }
+              mb={1.1}
             />
             <List dense>
               {visualizations.map((vis) => (
@@ -105,7 +106,7 @@ export function VisualizationTab() {
         <Panel>
           <Box sx={{ p: 2, height: '100%', minHeight: 0, overflow: 'auto' }}>
             {selectedVis ? (
-              <ChatVisualizationView chatId={selectedVis} onUpdateName={handleUpdateVisualizationName} />
+              <ChatVisualizationView chatId={selectedVis} onUpdateVisualization={handleUpdateVisualization} />
             ) : (
               <Typography>Select a chat or create a new one</Typography>
             )}

@@ -2,6 +2,8 @@ import { type ReactElement, type ReactNode, useState } from "react";
 import {
   Box,
   Collapse,
+  type SxProps,
+  type Theme,
   Typography,
 } from "@mui/material";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
@@ -11,7 +13,7 @@ interface CollapsibleSectionProps {
   title: string | ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
-  sx?: any;
+  sx?: SxProps<Theme>;
 }
 
 const CollapsibleSection = ({

@@ -3,10 +3,13 @@ import type { FileInfo } from '../types/knowledge';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || 'http://localhost:5010/api';
 
+export type ChatHistorySource = 'codex' | 'claude' | 'cline' | 'cursor';
+
 export interface ChatVisualization {
   chat_id: string;
   name?: string;
   chat_file_path: string;
+  chat_history_source?: ChatHistorySource;
   status: string;
   last_polled_at?: string;
 }
@@ -32,13 +35,20 @@ export const api = {
     return response.data;
   },
 
-  createChatVisualization: async (): Promise<ChatVisualization> => {
-    const response = await axios.post(`${API_BASE}/chat-visualizations`);
+  createChatVisualization: async (options?: {
+    chat_history_source?: ChatHistorySource;
+    rule_retrieval_source?: 'structured' | 'unstructured';
+  }): Promise<ChatVisualization> => {
+    const payload = options || {};
+    const response = await axios.post(`${API_BASE}/chat-visualizations`, payload);
     return response.data;
   },
 
-  updateChatVisualization: async (chatId: string, name: string): Promise<ChatVisualization> => {
-    const response = await axios.put(`${API_BASE}/chat-visualizations/${chatId}`, { name });
+  updateChatVisualization: async (
+    chatId: string,
+    updates: { name?: string; chat_history_source?: ChatHistorySource }
+  ): Promise<ChatVisualization> => {
+    const response = await axios.put(`${API_BASE}/chat-visualizations/${chatId}`, updates);
     return response.data;
   },
 

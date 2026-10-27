@@ -80,4 +80,10 @@ class OpenAIProvider(LLMProvider):
 def get_default_provider() -> LLMProvider:
     provider_type = os.getenv("LLM_PROVIDER", "openai").lower()
 
+    if provider_type != "openai":
+        raise ValueError(
+            f"Unsupported LLM_PROVIDER '{provider_type}'. "
+            "Only 'openai' is currently supported."
+        )
+
     return OpenAIProvider()

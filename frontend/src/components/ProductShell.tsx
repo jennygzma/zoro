@@ -1,17 +1,27 @@
-import { useMemo, useState } from 'react';
-import { Box, Tab, Tabs, Typography } from '@mui/material';
+import { lazy, Suspense, useMemo, useState } from 'react';
+import { Box, CircularProgress, Tab, Tabs, Typography } from '@mui/material';
 
 import { colors } from '../design-system/colors';
-import zoroIcon from '../assets/sword.png';
-import { KnowledgeBaseTab } from './KnowledgeBase/KnowledgeBaseTab';
-import { VisualizationTab } from './Visualization/VisualizationTab';
+import zoroIcon from '../assets/zoro.png';
+
+const VisualizationTab = lazy(() =>
+  import('./Visualization/VisualizationTab').then((module) => ({
+    default: module.VisualizationTab,
+  }))
+);
+
+const KnowledgeBaseTab = lazy(() =>
+  import('./KnowledgeBase/KnowledgeBaseTab').then((module) => ({
+    default: module.KnowledgeBaseTab,
+  }))
+);
 
 export function ProductShell() {
   const [tabIndex, setTabIndex] = useState(0);
   const visibleTabs = useMemo(
     () => [
-      { key: 'visualization', label: 'Visualization' },
-      { key: 'knowledge-base', label: 'Rules Management' },
+      { key: 'visualization', label: 'VISUALIZATION' },
+      { key: 'knowledge-base', label: 'RULES MANAGEMENT' },
     ],
     []
   );
@@ -77,8 +87,16 @@ export function ProductShell() {
       </Tabs>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {visibleTabs[tabIndex]?.key === 'visualization' && <VisualizationTab />}
-        {visibleTabs[tabIndex]?.key === 'knowledge-base' && <KnowledgeBaseTab />}
+        <Suspense
+          fallback={
+            <Box sx={{ height: '100%', display: 'grid', placeItems: 'center' }}>
+              <CircularProgress size={24} />
+            </Box>
+          }
+        >
+          {visibleTabs[tabIndex]?.key === 'visualization' && <VisualizationTab />}
+          {visibleTabs[tabIndex]?.key === 'knowledge-base' && <KnowledgeBaseTab />}
+        </Suspense>
       </Box>
     </Box>
   );

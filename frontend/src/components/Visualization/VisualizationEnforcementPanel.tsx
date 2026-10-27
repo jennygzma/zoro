@@ -734,7 +734,19 @@ export function VisualizationEnforcementPanel({ chatId, selectedItemId, selected
                                           <Typography variant="caption">
                                             <strong>Test:</strong> {verification.tests.name}
                                           </Typography>
-                                          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', display: 'block', bgcolor: colors.surfaceMutedAlt, p: 1, borderRadius: 0.5 }}>
+                                          <Typography
+                                            variant="caption"
+                                            sx={{
+                                              fontFamily: 'monospace',
+                                              fontSize: '0.7rem',
+                                              display: 'block',
+                                              bgcolor: colors.surfaceMutedAlt,
+                                              p: 1,
+                                              borderRadius: 0.5,
+                                              whiteSpace: 'pre-wrap',
+                                              overflowWrap: 'anywhere',
+                                            }}
+                                          >
                                             {verification.tests.command}
                                           </Typography>
                                           <Box>
@@ -757,7 +769,21 @@ export function VisualizationEnforcementPanel({ chatId, selectedItemId, selected
                                             </Accordion>
                                           )}
                                           {verification.tests.test_code && (
-                                            <Accordion title={`Test Code: ${verification.tests.test_file}`} defaultOpen={false}>
+                                            <Accordion title="Test Code" defaultOpen={false}>
+                                              <Typography
+                                                variant="caption"
+                                                sx={{
+                                                  display: 'block',
+                                                  mb: 1,
+                                                  color: 'text.secondary',
+                                                  fontFamily: 'monospace',
+                                                  fontSize: '0.68rem',
+                                                  whiteSpace: 'normal',
+                                                  overflowWrap: 'anywhere',
+                                                }}
+                                              >
+                                                {verification.tests.test_file}
+                                              </Typography>
                                               <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                                                 <SyntaxHighlighter
                                                   language="python"
@@ -773,7 +799,15 @@ export function VisualizationEnforcementPanel({ chatId, selectedItemId, selected
                                               </Box>
                                             </Accordion>
                                           )}
-                                          <Typography variant="caption" sx={{ color: colors.green }}>
+                                          <Typography
+                                            variant="caption"
+                                            sx={{
+                                              color: colors.green,
+                                              display: 'block',
+                                              whiteSpace: 'normal',
+                                              overflowWrap: 'anywhere',
+                                            }}
+                                          >
                                             📄 {verification.tests.test_file}
                                           </Typography>
                                         </Stack>

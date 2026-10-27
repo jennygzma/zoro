@@ -1,126 +1,185 @@
 # Zoro
 
-Zoro is a local-first workflow assistant for plan extraction, rule tracking, and coding-session visualization.
+Zoro is a local-first workflow assistant for coding sessions.
 
-It includes:
-- A Flask backend API
-- A React + Vite frontend
-- A `zoro` CLI for plan-step updates and rule evidence
+It provides:
+- a Flask backend API
+- a React + Vite frontend
+- a `zoro` CLI for plan tracking and rule evidence
 
 ## Requirements
 
 - Python `3.10+`
+- Conda or Mamba (recommended)
 - Node.js `20+`
 - npm
-- An OpenAI API key (`OPENAI_API_KEY`)
+- `OPENAI_API_KEY`
 
-## Install Zoro (one-time)
+## Quickstart (Recommended)
 
-Important:
-- You must install Zoro as a Python package before using it in any target repo.
-- This is what provides the `zoro` and `zoro-api` commands.
-
-1. Clone this repository:
+From this repository root:
 
 ```bash
-git clone https://github.com/<your-org-or-user>/<your-repo>.git
-cd <your-repo>   # this is the zoro source repo
-```
-
-2. Create a Python env and install Zoro (required):
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-```
-
-Windows PowerShell:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install --upgrade pip
-pip install -e .
-```
-
-3. Confirm the CLI is installed in your active environment:
-
-```bash
-zoro --help
-zoro-api --help
-```
-
-4. Install frontend dependencies (for the web UI):
-
-```bash
-npm install --prefix frontend
-```
-
-5. Configure environment variables:
-
-```bash
+make setup
 cp .env.example .env
+# edit .env and set OPENAI_API_KEY
+make dev
 ```
 
-Then set at least:
+Then open `http://127.0.0.1:5274`.
 
-```env
-OPENAI_API_KEY=your_key_here
-```
+Notes:
+- `make setup` creates/reuses Conda env `zoro` and installs backend/frontend deps.
+- `make dev` runs `conda run -n zoro zoro-api`.
+- You do **not** need to manually run `conda activate zoro` for Make commands.
 
-## Use Zoro In A Target Repo (recommended)
-
-This is the key behavior:
-- `zoro-api` must be run from the target repo root.
-- `.zoro/` is created in whatever directory you run from.
-- The Python environment where you installed Zoro must be active.
-
-1. Open the repo you want Zoro to track:
+## Core Commands
 
 ```bash
-cd /path/to/your-target-repo
+make setup          # install dependencies into Conda env + frontend
+make dev            # start backend + frontend
+make backend        # backend only
+make test           # backend tests
+make build-frontend # frontend production build
+make clean          # clear local build/cache outputs
 ```
 
-2. Initialize Zoro in that target repo:
+## Use Zoro in Another Repository
+
+Install Zoro once from this repo, then in any target repo:
 
 ```bash
-zoro init --user-name "Your Name"
+cd /path/to/target-repo
+conda run -n zoro zoro init --user-name "Your Name" --chat-history-source codex
+conda run -n zoro zoro-api --backend-only
 ```
 
-3. Start the backend from that same target repo:
+Supported chat sources:
+- `codex`
+- `claude` (Claude Code)
+- `cline`
+- `cursor`
+
+If frontend is not auto-launched from the target repo:
 
 ```bash
-zoro-api
-```
-
-4. In a second terminal, run the frontend from the Zoro source repo:
-
-```bash
-cd /path/to/<your-zoro-source-repo>/frontend
+cd /path/to/this-zoro-repo/frontend
 npm run dev
 ```
 
-5. Open:
-- Backend API: `http://localhost:5010`
-- Frontend UI: `http://127.0.0.1:5274`
+## Per-Task Chat Source (Current UX)
 
-## Develop Zoro Itself (this repo)
+Each session can use a different coding agent source.
 
-If you are developing this repository directly, you can run everything from here:
+1. Click `+` to create/select a session.
+2. Set that session’s `chat_history_source` (`codex`, `claude`, `cline`, or `cursor`).
+3. Start polling with Run/Play.
+
+Zoro reads chat history from:
+- Codex: `~/.codex/sessions`
+- Claude Code: `~/.claude/projects`
+- Cline: `~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/tasks/*/api_conversation_history.json`
+- Cursor: `~/Library/Application Support/Cursor/User/workspaceStorage/*/chatSessions/*.json`
+
+For Codex, Claude Code, and Cursor, Zoro first tries matching sessions for the current workspace path, then falls back to the latest session.
+
+## Automatic Behavior
+
+- Pressing Run/Play triggers plan preparation automatically:
+  - no plan yet → extract plan
+  - plan exists but no attached rules → enrich plan with rules
+- Supervisor auto-runs during live polling once enough new tokens accumulate.
+- Rule Learning auto-runs during live polling while there is more transcript window to analyze.
+- Both Supervisor and Rule Learning can also be run manually from their panel buttons.
+
+## Initial Rules: JSON Format
+
+You have two good options:
+- markdown-first: drop `.md` files into `.zoro/rules/unstructured/`, then structure them in UI
+- easiest: use **Rules Management** UI (`Add rule`)
+- direct: add items via API or by editing `.zoro/rules/structured/knowledge_base.json`
+
+### Option 0: Markdown → Structured Rules
+
+Yes — this is supported and is great for bulk onboarding.
+
+1. Add one or more markdown files under:
 
 ```bash
-zoro-api
+.zoro/rules/unstructured/
 ```
 
-## Supported Chat Sources
+2. Open **Rules Management → Unstructured Files**.
+3. Click **Structure** for one file, or **Structure all pending files**.
+4. Zoro parses those `.md` files and writes structured items into:
 
-- Currently supported: `codex`, `cline`
-- Recommended default: `codex`
-- Claude chat-history source support: coming soon
+```bash
+.zoro/rules/structured/knowledge_base.json
+```
 
-You can set this in `.zoro/config.json`:
+Optional:
+- use **Structure repo AGENTS.md** to ingest the current repo’s root `AGENTS.md` directly
+- the raw source snapshot is archived under `.zoro/rules/unstructured/processed/`
+
+### Option A: API (`POST /api/kb/items`)
+
+Minimum required fields:
+
+```json
+{
+  "type": "rule",
+  "category": "workflow",
+  "title": "Write tests before refactor",
+  "content": "Add/adjust tests first, then refactor safely."
+}
+```
+
+Common optional fields:
+- `context`, `evidence`
+- `confidence` (default `0.5`)
+- `decay` (default `0.5`)
+- `confidence_reasoning`, `decay_reasoning`
+- `usage_count` (default `0`)
+- `is_favorite` (default `false`)
+- `is_strict` (default `false`)
+- `is_testable` (default `false`)
+
+### Option B: File (`.zoro/rules/structured/knowledge_base.json`)
+
+Create this file if it does not exist:
+
+```json
+{
+  "items": [
+    {
+      "item_id": "rule-001",
+      "type": "rule",
+      "category": "workflow",
+      "title": "Write tests before refactor",
+      "content": "Add/adjust tests first, then refactor safely.",
+      "context": "Applies to backend and frontend refactors",
+      "evidence": null,
+      "confidence": 0.8,
+      "decay": 0.2,
+      "confidence_reasoning": "Repeatedly prevented regressions",
+      "decay_reasoning": "Stable project practice",
+      "source_file": "manual",
+      "usage_count": 0,
+      "is_favorite": true,
+      "is_strict": false,
+      "is_testable": true,
+      "created_at": "2026-01-01T00:00:00"
+    }
+  ],
+  "categories": []
+}
+```
+
+You can keep this minimal (only required fields) when seeding; missing optional fields are filled with defaults when added through API/UI.
+
+## Config
+
+Set default chat source in `.zoro/config.json`:
 
 ```json
 {
@@ -128,55 +187,9 @@ You can set this in `.zoro/config.json`:
 }
 ```
 
-## Python Environment Notes
-
-- You only need one active Python environment with `zoro` installed.
-- That environment can live anywhere (for example in the Zoro source repo).
-- When using Zoro in another target repo, activate the same environment, then `cd` into the target repo and run `zoro` / `zoro-api`.
-
-`venv` vs Conda:
-- Use `venv` unless you already rely on Conda for your workflow.
-- Conda is optional; it is not required for Zoro.
-
-## Rules Setup In `.zoro`
-
-To seed rules manually in a target repo:
-
-```bash
-cd /path/to/your-target-repo
-mkdir -p .zoro/rules/unstructured
-```
-
-Add markdown files to `.zoro/rules/unstructured`, for example:
-
-```bash
-cat > .zoro/rules/unstructured/team-rules.md <<'EOF'
-# Backend Rules
-
-- Keep route handlers thin.
-- Keep business logic in service modules.
-- Use typed schemas for API responses.
-EOF
-```
-
-Then in the UI:
-- Open **Rules Management**
-- Click **Structure `file.md`** (or **Structure all pending files**)
-- Optional: use **Structure repo AGENTS.md** to import repo-root `AGENTS.md` directly
-
-Structured results are stored under `.zoro/rules/structured` (including `knowledge_base.json`).
-
 ## Troubleshooting
 
-1. `OpenAI API key not found`
-- Ensure `.env` exists and includes `OPENAI_API_KEY`.
-
-2. Frontend can’t reach backend
-- Confirm backend is on `5010` and frontend is on `5274`.
-- Check browser console for CORS/API errors.
-
-3. Port already in use
-- Stop the process using `5010` or `5274`, then restart.
-
-4. “No codex/cline chat history found”
-- Zoro is local-history driven. Make sure your local chat history source exists and `.zoro/config.json` has the intended `chat_history_source`.
+- `Conda env 'zoro' was not found` → run `make setup`.
+- `OpenAI API key not found` → set `OPENAI_API_KEY` in `.env`.
+- Frontend cannot reach backend → verify ports `5010` and `5274`.
+- No chat history found → confirm the chosen source and local history files exist.

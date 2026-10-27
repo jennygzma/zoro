@@ -6,7 +6,7 @@ import {
 
 import { colors } from './colors';
 
-interface InputAdornmentProps extends MuiInputAdornmentProps {}
+type InputAdornmentProps = MuiInputAdornmentProps;
 
 const InputAdornment = ({ sx, ...props }: InputAdornmentProps): ReactElement => {
   return (

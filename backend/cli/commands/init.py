@@ -11,6 +11,10 @@ from backend.utils import DEFAULT_MODEL, DEFAULT_MODELS_BY_FEATURE
 
 
 def cmd_init(args, save_config):
+    chat_history_source = getattr(args, "chat_history_source", "codex")
+    if chat_history_source not in {"codex", "cline", "claude", "cursor"}:
+        chat_history_source = "codex"
+
     print("Initializing Zoro in current project...")
     print(f"User: {args.user_name}\n")
 
@@ -30,7 +34,7 @@ def cmd_init(args, save_config):
             "enforcement_mode": "selective-verification",
             "rule_retrieval_source": "structured",
             "rule_test_evidence_enabled": True,
-            "chat_history_source": "codex",
+            "chat_history_source": chat_history_source,
             "default_model": DEFAULT_MODEL,
             "llm_models": dict(DEFAULT_MODELS_BY_FEATURE),
             "processed_files": [],
@@ -40,22 +44,26 @@ def cmd_init(args, save_config):
 
         print_section("SETUP COMPLETE!")
         print("\nNext steps:")
-        print("1. Set up API key:")
+        print("1. Use the Zoro Conda runtime:")
+        print("   - Prefer: conda run -n zoro zoro <command>")
+        print("   - Optional: conda activate zoro, then run zoro <command>")
+        print()
+        print("2. Set up API key:")
         print("   - Copy .env.example to .env")
         print("   - Add your OPENAI_API_KEY to .env")
         print()
-        print("2. Defaults applied:")
+        print("3. Defaults applied:")
         print("   - enforcement_mode = selective-verification")
-        print("   - chat_history_source = codex")
+        print(f"   - chat_history_source = {chat_history_source}")
         print("   - rule_retrieval_source = structured")
         print()
-        print("3. Agent protocol files:")
+        print("4. Agent protocol files:")
         print("   - Read ZORO.md for the canonical workflow protocol")
         print("   - Existing AGENTS.md content is preserved and prefixed with the Zoro shim")
         print()
-        print("4. Start using the visualization workflow:")
+        print("5. Start using the visualization workflow:")
         print("   - Extract a plan into .zoro/CURRENT_PLAN.md")
-        print("   - Use `zoro update-step`, `zoro prove-rule`, and `zoro add-note` while coding")
+        print("   - Use `conda run -n zoro zoro update-step`, `conda run -n zoro zoro prove-rule`, and `conda run -n zoro zoro add-note` while coding")
         print()
     except Exception as e:
         print(f"\nError during initialization: {e}")

@@ -11,9 +11,6 @@ setup(
         "python-dotenv>=1.0.0",
         "openai>=1.0.0",
         "tiktoken>=0.5.0",
-        # Additional dependencies for Chinese LLM providers
-        "dashscope; platform_system!='Darwin' or python_implementation!='PyPy'",  # For Qwen
-        "zhipuai; platform_system!='Darwin' or python_implementation!='PyPy'",   # For Zhipu
     ],
     entry_points={
         'console_scripts': [

@@ -4,7 +4,7 @@ import {
   type FormControlProps as MuiFormControlProps,
 } from '@mui/material';
 
-interface FormControlProps extends MuiFormControlProps {}
+type FormControlProps = MuiFormControlProps;
 
 const FormControl = ({
   size = 'small',

@@ -6,7 +6,7 @@ import {
 
 import { colors } from './colors';
 
-interface InputLabelProps extends MuiInputLabelProps {}
+type InputLabelProps = MuiInputLabelProps;
 
 const InputLabel = ({ sx, ...props }: InputLabelProps): ReactElement => {
   return (

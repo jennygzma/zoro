@@ -75,7 +75,14 @@ def get_chat_visualization(chat_id):
 def create_chat_visualization():
     try:
         logger.info("POST /api/chat-visualizations - Started")
-        metadata, error = vm.create_visualization()
+        data = request.json or {}
+        rule_retrieval_source = data.get("rule_retrieval_source")
+        chat_history_source = data.get("chat_history_source")
+
+        metadata, error = vm.create_visualization(
+            rule_retrieval_source=rule_retrieval_source,
+            chat_history_source=chat_history_source,
+        )
 
         if error:
             logger.info(f"POST /api/chat-visualizations - Error: {error}")
@@ -108,12 +115,23 @@ def update_chat_visualization(chat_id):
     try:
         logger.info(f"PUT /api/chat-visualizations/{chat_id} - Started")
         data = request.json or {}
-        name = data.get("name", "").strip()
+        has_name = "name" in data
+        has_chat_history_source = "chat_history_source" in data
 
-        if not name:
+        if not has_name and not has_chat_history_source:
+            return jsonify({"error": "Missing update fields"}), 400
+
+        name = data.get("name") if has_name else None
+        if has_name and not str(name).strip():
             return jsonify({"error": "Missing name"}), 400
 
-        metadata, error = vm.update_visualization_name(chat_id, name)
+        chat_history_source = data.get("chat_history_source") if has_chat_history_source else None
+
+        metadata, error = vm.update_visualization_settings(
+            chat_id,
+            name=str(name).strip() if has_name else None,
+            chat_history_source=chat_history_source,
+        )
 
         if error:
             logger.info(f"PUT /api/chat-visualizations/{chat_id} - Error: {error}")

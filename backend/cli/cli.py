@@ -38,6 +38,13 @@ def parse_args():
         required=True,
         help='Your name for personalized learning'
     )
+    init_parser.add_argument(
+        '--chat-history-source',
+        type=str,
+        choices=['codex', 'cline', 'claude', 'cursor'],
+        default='codex',
+        help='Chat history source used by visualization session discovery'
+    )
 
     # Update-step command
     update_step_parser = subparsers.add_parser(

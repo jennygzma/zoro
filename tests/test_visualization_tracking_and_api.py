@@ -221,7 +221,7 @@ def test_create_visualization_splits_session_and_runtime_state(monkeypatch, tmp_
 
     chat_file = tmp_path / "demo.jsonl"
     chat_file.write_text("", encoding="utf-8")
-    monkeypatch.setattr(visualization_manager, "find_latest_chat_history_path", lambda: chat_file)
+    monkeypatch.setattr(visualization_manager, "find_latest_chat_history_path", lambda source=None, cwd=None: chat_file)
     monkeypatch.setattr(visualization_manager, "get_chat_history_source_from_config", lambda: "codex")
 
     metadata, error = visualization_manager.create_visualization(rule_retrieval_source="structured")

@@ -21,7 +21,7 @@ from backend.visualization.paths import (
 from backend.visualization.services.rule_learning_agent import (
     find_latest_chat_history_path,
     read_new_chat_content,
-    _parse_codex_jsonl_messages
+    parse_chat_jsonl_messages,
 )
 from backend.visualization.chat_parser import ChatParser
 from backend.visualization.services.plan_persistence import (
@@ -35,6 +35,25 @@ VIS_DIR = get_visualization_root()
 INDEX_FILE = get_visualization_index_path()
 
 TOKEN_THRESHOLD = 150000
+
+
+def _extract_text_from_content_blocks(content) -> str:
+    if isinstance(content, str):
+        return content
+
+    if not isinstance(content, list):
+        return ""
+
+    parts: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "text":
+            text = str(block.get("text", "")).strip()
+            if text:
+                parts.append(text)
+
+    return "\n".join(parts)
 
 def _ensure_vis_dir():
     VIS_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,15 +154,25 @@ def recover_sessions_after_restart() -> int:
 
     return recovered
 
-def create_visualization(rule_retrieval_source: str = None) -> Tuple[Optional[Dict], Optional[str]]:
+def create_visualization(
+    rule_retrieval_source: str = None,
+    chat_history_source: str | None = None,
+) -> Tuple[Optional[Dict], Optional[str]]:
     if rule_retrieval_source is None:
         rule_retrieval_source = get_rule_retrieval_source_from_config()
+
+    if chat_history_source is None:
+        chat_history_source = get_chat_history_source_from_config()
+    else:
+        chat_history_source = str(chat_history_source).strip().lower()
+
+    if chat_history_source not in {"codex", "cline", "claude", "cursor"}:
+        return None, "Invalid chat_history_source: must be 'codex', 'claude', 'cline', or 'cursor'"
     
-    latest_path = find_latest_chat_history_path()
+    latest_path = find_latest_chat_history_path(chat_history_source, cwd=get_project_root())
     
     if not latest_path:
-        source = get_chat_history_source_from_config()
-        return None, f"No {source} chat history found"
+        return None, f"No {chat_history_source} chat history found"
     
     latest_path_str = str(latest_path)
     
@@ -166,7 +195,7 @@ def create_visualization(rule_retrieval_source: str = None) -> Tuple[Optional[Di
         "chat_id": chat_id,
         "name": None,
         "chat_file_path": latest_path_str,
-        "chat_history_source": get_chat_history_source_from_config(),
+        "chat_history_source": chat_history_source,
         "status": "idle",
         "last_polled_at": None,
         "plan_tracking": {},
@@ -207,14 +236,71 @@ def delete_visualization(chat_id: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 def update_visualization_name(chat_id: str, name: str) -> Tuple[Optional[Dict], Optional[str]]:
+    return update_visualization_settings(chat_id, name=name)
+
+
+def update_visualization_settings(
+    chat_id: str,
+    name: str | None = None,
+    chat_history_source: str | None = None,
+) -> Tuple[Optional[Dict], Optional[str]]:
     metadata = _load_metadata(chat_id)
     if not metadata:
         return None, "Visualization not found"
-    
-    metadata["name"] = name
+
+    changed = False
+
+    if name is not None:
+        clean_name = str(name).strip()
+        if not clean_name:
+            return None, "Missing name"
+        metadata["name"] = clean_name
+        changed = True
+
+    if chat_history_source is not None:
+        source = str(chat_history_source).strip().lower()
+        if source not in {"codex", "cline", "claude", "cursor"}:
+            return None, "Invalid chat_history_source: must be 'codex', 'claude', 'cline', or 'cursor'"
+
+        current_source = str(metadata.get("chat_history_source", "")).strip().lower()
+        if source != current_source:
+            latest_path = find_latest_chat_history_path(source, cwd=get_project_root())
+            if not latest_path:
+                return None, f"No {source} chat history found"
+
+            latest_path_str = str(latest_path)
+
+            index = _load_index()
+            path_map = index.get("path_to_chat_id", {})
+            existing_chat_id = path_map.get(latest_path_str)
+            if existing_chat_id and existing_chat_id != chat_id:
+                existing_metadata = _load_metadata(existing_chat_id)
+                existing_name = existing_metadata.get('name', existing_chat_id) if existing_metadata else existing_chat_id
+                return None, f"Chat already visualized as '{existing_name}'"
+
+            old_path = metadata.get("chat_file_path")
+            if old_path and path_map.get(old_path) == chat_id:
+                del path_map[old_path]
+
+            path_map[latest_path_str] = chat_id
+            index["path_to_chat_id"] = path_map
+            _save_index(index)
+
+            metadata["chat_history_source"] = source
+            metadata["chat_file_path"] = latest_path_str
+            metadata["last_polled_at"] = None
+            if metadata.get("status") == "polling":
+                metadata["status"] = "paused"
+
+            save_runtime_document(chat_id, {})
+            changed = True
+
+    if not changed:
+        return get_visualization(chat_id), None
+
     metadata["updated_at"] = datetime.now().isoformat()
     _save_metadata(chat_id, metadata)
-    
+
     return get_visualization(chat_id), None
 
 def start_visualization(chat_id: str) -> Tuple[Optional[Dict], Optional[str]]:
@@ -260,14 +346,7 @@ def poll_visualization(chat_id: str) -> Tuple[Optional[str], str, Optional[str]]
         return None, metadata["status"], None
     
     try:
-        if chat_file_path.endswith(".jsonl"):
-            messages = _parse_codex_jsonl_messages(content)
-        else:
-            data = json.loads(content)
-            if isinstance(data, list):
-                messages = data
-            else:
-                messages = data.get("messages", [])
+        messages = parse_chat_jsonl_messages(content)
         
         last_message_index = runtime.get("last_message_index", 0)
         new_messages = messages[last_message_index:]
@@ -277,10 +356,10 @@ def poll_visualization(chat_id: str) -> Tuple[Optional[str], str, Optional[str]]
             _save_metadata(chat_id, metadata)
             return None, metadata["status"], None
         
-        new_content = "\n\n".join([
-            f"{msg.get('role', 'unknown')}: {msg.get('content', '')}"
+        new_content = "\n\n".join(
+            f"{msg.get('role', 'unknown')}: {_extract_text_from_content_blocks(msg.get('content', ''))}"
             for msg in new_messages
-        ])
+        )
         
         parser = ChatParser()
         try:

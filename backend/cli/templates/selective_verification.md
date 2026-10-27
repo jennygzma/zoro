@@ -4,8 +4,12 @@
 
 Selective verification means: verify only **strict** rules (⚡), but verify them strictly.
 
-1. Activate environment first:
+1. Use the Conda `zoro` environment:
 ```bash
+# preferred (no activation):
+conda run -n zoro zoro <command>
+
+# optional activation flow:
 conda activate zoro
 ```
 

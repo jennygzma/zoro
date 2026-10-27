@@ -2,9 +2,15 @@
 __pycache__/
 *.pyc
 *.egg-info/
+.venv/
+.pytest_cache/
 
 # Environment variables
 .env
+
+# Frontend build and dependency outputs
+frontend/node_modules/
+frontend/dist/
 
 # Generated data (persistence layer)
 learner/generated/

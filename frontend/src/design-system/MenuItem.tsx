@@ -4,7 +4,7 @@ import {
   type MenuItemProps as MuiMenuItemProps,
 } from '@mui/material';
 
-interface MenuItemProps extends MuiMenuItemProps {}
+type MenuItemProps = MuiMenuItemProps;
 
 const MenuItem = ({ sx, ...props }: MenuItemProps): ReactElement => {
   return (

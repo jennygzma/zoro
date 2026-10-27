@@ -84,8 +84,8 @@ def get_rule_test_evidence_enabled() -> bool:
 
 def get_chat_history_source_from_config() -> str:
     config = _load_config()
-    source = config.get("chat_history_source", "cline")
-    if source not in ["cline", "codex"]:
+    source = str(config.get("chat_history_source", "cline")).strip().lower()
+    if source not in ["cline", "codex", "claude", "cursor"]:
         logger = logging.getLogger(__name__)
         logger.warning(
             "Invalid chat_history_source '%s' in config, defaulting to 'cline'",

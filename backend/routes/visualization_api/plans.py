@@ -21,7 +21,7 @@ from backend.visualization.services.plan_persistence import (
     normalize_plan_document,
     save_plan_document,
 )
-from backend.visualization.services.rule_learning_agent import _parse_codex_jsonl_messages
+from backend.visualization.services.rule_learning_agent import parse_chat_jsonl_messages
 from backend.visualization.services.visualization_manager import (
     _delete_item_recursive,
     _find_item_in_tree,
@@ -264,19 +264,7 @@ def _load_chat_messages(chat_file_path: str) -> list[dict]:
     except OSError:
         return []
 
-    try:
-        if path.suffix.lower() == ".jsonl":
-            messages = _parse_codex_jsonl_messages(raw_content)
-        else:
-            payload = json.loads(raw_content)
-            if isinstance(payload, list):
-                messages = payload
-            elif isinstance(payload, dict):
-                messages = payload.get("messages", [])
-            else:
-                messages = []
-    except (json.JSONDecodeError, ValueError):
-        return []
+    messages = parse_chat_jsonl_messages(raw_content)
 
     normalized = []
     for message in messages:
